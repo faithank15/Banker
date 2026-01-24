@@ -35,7 +35,71 @@ public class DBManager {
         return con;
     }
     
-    public boolean create_account(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
+    public boolean create_compte(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
         
     }
+    
+    public boolean create_client(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
+        
+    }
+    
+    public boolean create_trans(Connection con, int numCompte, int montTrans, String statut, String typeTrans, String motif){
+        
+    }
+    
+    public boolean create_pret(Connection con, int numCompte, int montPret, String statutPret){
+        
+    }
+    
+    public boolean create_remb(Connection con, int idPret, int montRemb ){
+        
+    }
+    
+    public List<String> get_compte(Connection con, int numCompte){
+        
+    }
+    
+    public List<String> get_client(Connection con, int idCli){
+        
+    }
+    
+    public List<String> get_trans(Connection con, int idTrans){
+        
+    }
+    
+    public List<String> get_pret(Connection con, int idPret){
+        
+    }
+    
+    public List<String> get_remb(Connection con, int idRemb){
+        
+    }
+    
+    public boolean set_compte(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
+            
+    }
+    
+    public boolean set_client(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
+        
+    }
+    
+    public boolean set_trans(Connection con, int numCompte, int montTrans, String statut, String typeTrans, String motif){
+        
+    }
+    
+    public boolean set_pret(Connection con, int numCompte, int montPret, String statutPret){
+        
+    }
+    
+    public boolean set_remb(Connection con, int idPret, int montRemb ){
+        
+    }
+
+
+
+
+ 
+
+
+ 
 }
