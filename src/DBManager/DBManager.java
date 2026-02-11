@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package groupe6;
+package DBManager;
 
 import java.sql.Connection;
 import java.sql.*;
@@ -12,7 +12,7 @@ import java.sql.*;
  * @author faithan15
  */
 public class DBManager {
-    public static final String DB = "jdbc:mysql://localhost:3306/FormTest";
+    public static final String DB = "jdbc:mysql://localhost:3306/banque";
     
     private static final String USER = "root";
     private static final String PASSWORD = "";
@@ -30,73 +30,7 @@ public class DBManager {
         return con;
     }
     
-<<<<<<< HEAD
-    public boolean create_compte(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
-        
-    }
-    
-    public boolean create_client(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
-        
-    }
-    
-    public boolean create_trans(Connection con, int numCompte, int montTrans, String statut, String typeTrans, String motif){
-        
-    }
-    
-    public boolean create_pret(Connection con, int numCompte, int montPret, String statutPret){
-        
-    }
-    
-    public boolean create_remb(Connection con, int idPret, int montRemb ){
-        
-    }
-    
-    public List<String> get_compte(Connection con, int numCompte){
-        
-    }
-    
-    public List<String> get_client(Connection con, int idCli){
-        
-    }
-    
-    public List<String> get_trans(Connection con, int idTrans){
-        
-    }
-    
-    public List<String> get_pret(Connection con, int idPret){
-        
-    }
-    
-    public List<String> get_remb(Connection con, int idRemb){
-        
-    }
-    
-    public boolean set_compte(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
-            
-    }
-    
-    public boolean set_client(Connection con, String nom, String prenom, String dateNais, int numTel, String sexe, String addresse, String profession, int npi, String email){
-        
-    }
-    
-    public boolean set_trans(Connection con, int numCompte, int montTrans, String statut, String typeTrans, String motif){
-        
-    }
-    
-    public boolean set_pret(Connection con, int numCompte, int montPret, String statutPret){
-        
-    }
-    
-    public boolean set_remb(Connection con, int idPret, int montRemb ){
-        
-    }
 
-
-
-
- 
-
-=======
     //LES METHODES DE CREATION/INSERTION DANS LA DB
     
     public boolean create_compte(Connection con, long numCompte, String dateCrea,
@@ -129,8 +63,8 @@ public class DBManager {
     }
     
     public boolean create_client(Connection con, String nom, String prenom, String dateNais,
-                             int numTel, String sexe, String addresse,
-                             String profession, int npi, String email) {
+                             long numTel, String sexe, String addresse,
+                             String profession, long npi, String email) {
 
         String sql = "INSERT INTO Client(nomCli, preCli, dateNais, numTel, sexe, adresse, profession, npi, email) VALUES (?,?,?,?,?,?,?,?,?)";
 
@@ -138,11 +72,11 @@ public class DBManager {
             pst.setString(1, nom);
             pst.setString(2, prenom);
             pst.setString(3, dateNais);
-            pst.setInt(4, numTel);
+            pst.setLong(4, numTel);
             pst.setString(5, sexe);
             pst.setString(6, addresse);
             pst.setString(7, profession);
-            pst.setInt(8, npi);
+            pst.setLong(8, npi);
             pst.setString(9, email);
 
             pst.executeUpdate();
@@ -211,7 +145,7 @@ public class DBManager {
     
     //LES METHODES DE LECTURE
     
-    
+   /* 
     public Compte get_compte(Connection con, long numCompte) {
 
         String sql = "SELECT * FROM Compte WHERE numCompte = ?";
@@ -467,7 +401,7 @@ public class DBManager {
             return false;
         }
     }
->>>>>>> 365f1ecbc334454f0d46e89e200e4ec0869181c3
-
+    
+*/
  
 }
