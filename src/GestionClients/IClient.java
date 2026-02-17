@@ -20,6 +20,13 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import java.io.File;
+import java.awt.image.BufferedImage;
+import javax.swing.table.TableCellEditor;
+import javax.swing.AbstractCellEditor;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseAdapter;
 
 
 
@@ -38,6 +45,7 @@ public class IClient extends javax.swing.JFrame {
     private JTable clientTable;
     private DefaultTableModel tableModel;
     private DBManager dbManager;
+    private JTextField searchField;
 
     /**
      * Creates new form IClient
@@ -45,7 +53,7 @@ public class IClient extends javax.swing.JFrame {
     public IClient() {
         CustomInit();
         setTitle("Gestion Clients - Banker");
-        setSize(1200,700);
+        setSize(1400,700);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setVisible(true);
@@ -56,23 +64,49 @@ public class IClient extends javax.swing.JFrame {
     }
     
     private void CustomInit(){
-        mainPanel = new JPanel(new BorderLayout());
+        mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBackground(new Color(240, 242, 245));
         
-        createHeader();
-        createAddClientForm();
-        createClientListCard();
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        
+        JPanel header = createHeader();
+        gbc.insets = new Insets(20, 20, 10, 20);
+        mainPanel.add(header, gbc);
+        
+        gbc.gridy = 1;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.insets = new Insets(10, 20, 10, 20);
+        JPanel formCard = createAddClientForm();
+        mainPanel.add(formCard, gbc);
+        
+        
+       
+        gbc.gridy = 2;
+        gbc.weighty = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(10, 20, 20, 20);
+        JPanel listCard = createClientListCard();
+        mainPanel.add(listCard, gbc);
+   
         
         dbManager = new DBManager();
+        loadClients();
         
-        
-        getContentPane().add(mainPanel, BorderLayout.CENTER);
-        pack();
-        setSize(1200, 900);
+       JScrollPane scrollPane = new JScrollPane(mainPanel);
+       getContentPane().add(scrollPane, BorderLayout.CENTER);
+       
+       setSize(1300, 900);
+       setLocationRelativeTo(null);
+      
        
     }
     
-    private void createHeader(){
+    private JPanel createHeader(){
         headerPanel = new JPanel(new GridBagLayout());
         headerPanel.setBackground(new Color(240, 242, 245));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 32, 20));
@@ -118,7 +152,7 @@ public class IClient extends javax.swing.JFrame {
         JPanel searchPanel = new JPanel(new BorderLayout());
         searchPanel.setBackground(new Color(240, 242, 245));
         
-        JTextField searchField = new JTextField(){
+          searchField = new JTextField(){
             @Override
             protected void paintComponent(Graphics g){
                 if (!isOpaque() && getBorder() instanceof RoundedBorder){
@@ -138,6 +172,9 @@ public class IClient extends javax.swing.JFrame {
         searchField.setOpaque(false);
         searchField.setBorder(new RoundedBorder(6));
         
+        searchField.setText("Rechercher un client...");
+        searchField.setForeground(new Color(153, 153, 153));
+        
         searchField.addFocusListener(new FocusAdapter(){
             @Override
             public void focusGained(FocusEvent evt){
@@ -156,13 +193,97 @@ public class IClient extends javax.swing.JFrame {
             }
         });
         
+        searchField.addKeyListener(new KeyAdapter(){
+            @Override
+            public void keyReleased(KeyEvent e){
+                String text = searchField.getText().trim();
+                
+                if (text.equals("Rechercher un client...")|| text.isEmpty()){
+                    if(text.isEmpty() && !searchField.hasFocus()){
+                        return;
+                    }
+                    loadClients();
+                    return;
+                }
+                searchClients();
+            }
+        });
         searchPanel.add(searchField, BorderLayout.EAST);
         
         
         headerPanel.add(searchPanel, gbc);
         
-        mainPanel.add(headerPanel, BorderLayout.NORTH);
+       return headerPanel;
          
+    }
+    private void searchClients(){
+        String searchText = searchField.getText().toLowerCase().trim();
+        if(searchText.isEmpty() || searchText.equals("rechercher un client...")){
+            loadClients();
+            return;
+        }
+        
+        
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try{
+            conn = DBManager.link();
+            if(conn == null){
+                
+                return;
+            }
+           String sql = "SELECT idCli, nomCli, preCli, email, numTel, dateNais, profession, sexe, npi " +  
+             "FROM client WHERE LOWER(nomCli) LIKE ? OR LOWER(preCli) LIKE ? " +               
+             "ORDER BY idCli DESC";
+            
+            pstmt = conn.prepareStatement(sql);
+            String pattern = "%" + searchText + "%";
+            
+            pstmt.setString(1, pattern);
+            pstmt.setString(2, pattern);
+            
+            
+            
+            rs = pstmt.executeQuery();
+            
+            
+            
+            tableModel.setRowCount(0);
+            int count = 0;
+            while (rs.next()){
+                count++;
+                addClientRow(rs);
+            }
+            
+            if(count == 0){
+                JOptionPane.showMessageDialog(this,
+                        "Aucun client trouvé pour:" + searchText,
+                        "Résultat de recherche",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        }catch(SQLException e){
+            System.out.println("Erreur SQL: "+ e.getMessage());
+            e.printStackTrace();
+            
+            JOptionPane.showMessageDialog(this,
+                    "Erreur lors de la recherche" + e.getMessage(),
+                    "Erreur", 
+                    JOptionPane.ERROR_MESSAGE);
+        }finally{
+            try{
+                if (rs != null) rs.close();
+                if (pstmt != null) pstmt.close();
+                if (conn != null) conn.close();
+            }catch(SQLException e){
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private void updateHeaderCount(int count){
+        
     }
     class RoundedBorder implements Border {
         private int radius;
@@ -190,7 +311,7 @@ public class IClient extends javax.swing.JFrame {
         }
     }
     
-    private void createAddClientForm(){
+    private JPanel createAddClientForm(){
         JPanel formCard = new JPanel();
         formCard.setLayout(new BorderLayout());
         formCard.setBackground(Color.WHITE);
@@ -327,8 +448,7 @@ public class IClient extends javax.swing.JFrame {
         bodyPanel.add(npiField, gbc);
         
         formCard.add(bodyPanel, BorderLayout.CENTER);
-        
-        //Then the fucking buttons !!!
+       
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         buttonPanel.setBackground(Color.WHITE);
@@ -366,7 +486,7 @@ public class IClient extends javax.swing.JFrame {
         gdc.fill = GridBagConstraints.HORIZONTAL;
         
         container.add(formCard, gdc);
-        mainPanel.add(container, BorderLayout.CENTER);
+        return formCard;
         
                
     }
@@ -541,7 +661,7 @@ public class IClient extends javax.swing.JFrame {
             
             
 
-        System.out.println("\nThe end..");
+        loadClients();
     }
     
     private boolean checkIfClientExists(Connection conn, String champ, String valeur){
@@ -681,32 +801,38 @@ public class IClient extends javax.swing.JFrame {
         
     }
     
-    private void createClientListCard(){
+    private JPanel createClientListCard(){
         JPanel card = new JPanel();
         card.setLayout(new BorderLayout());
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(228, 230, 235), 1),
                  BorderFactory.createEmptyBorder(0, 0, 24, 0)));
         
+        
+        JTable table = createClientTable();
+        
+        
         JPanel header = createListHeader();
         card.add(header, BorderLayout.NORTH);
         
-        JTable table = createClientTable();
+        
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         scrollPane.getViewport().setBackground(Color.WHITE);
         
         card.add(scrollPane, BorderLayout.CENTER);
         
-        JPanel pagination = createPagination();
-        card.add(pagination, BorderLayout.SOUTH);
+        
+        
         
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        mainPanel.add(card, BorderLayout.SOUTH);
+        return card;
         
         
         
     }
+    
+    private JLabel countBadge;
     
     private JPanel createListHeader(){
         JPanel header = new JPanel(new BorderLayout());
@@ -720,12 +846,38 @@ public class IClient extends javax.swing.JFrame {
         title.setFont(new Font("Century Gothic", Font.BOLD, 18));
         title.setForeground(new Color(28, 30, 33));
         
-        header.add(title, BorderLayout.WEST);
+        
+        
+        int clientCount = 0;
+        if(tableModel != null){
+            clientCount = tableModel.getRowCount();
+        }
+        countBadge = new JLabel("(" + clientCount + "clients)");
+        countBadge.setFont(new Font("Century Gothic", Font.PLAIN, 14));
+        countBadge.setForeground(new Color(101, 103, 107));
+        countBadge.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        titlePanel.setBackground(Color.WHITE);
+        titlePanel.add(title);
+        titlePanel.add(countBadge);
+        
+        
+        header.add(titlePanel, BorderLayout.WEST);
         
         return header;
         
         
     }
+    
+   private void updateClientCount(){
+       if(countBadge != null && tableModel != null){
+           int count = tableModel.getRowCount();
+           countBadge.setText("(" + count + "client" + (count > 1 ? "s" : "") + ")");
+           countBadge.revalidate();
+           countBadge.repaint();
+       }
+   }
     
     private JTable createClientTable(){
         String[] columns = {"ID", "Client", "Contact", "Informations", "Comptes", "Statut", "Actions"};
@@ -734,7 +886,7 @@ public class IClient extends javax.swing.JFrame {
             
             @Override
             public boolean isCellEditable(int row, int column){
-                return false;
+                return column == 6;
             }
             
             @Override
@@ -748,6 +900,8 @@ public class IClient extends javax.swing.JFrame {
         configureTable();
         
         loadClients();
+        
+        
         
         return clientTable;
     }
@@ -772,15 +926,44 @@ public class IClient extends javax.swing.JFrame {
         int[] widths = {60, 200, 180, 200, 120, 100, 80};
         for (int i = 0; i < widths.length; i++){
             clientTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
-            
+        }
+        
+            clientTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer(){
+                @Override
+                public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column){
+                    JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    if(value != null){
+                        String text = value.toString();
+                        if(text.contains("<") && text.contains(">")){
+                            label.setText("<html>" + text + "</html>");
+                        }
+                    }
+                    label.setHorizontalAlignment(SwingConstants.CENTER);
+                    return label;
+                }
+            });
             clientTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer(){
                 @Override
                 public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column){
                     JLabel label = (JLabel) super.getTableCellRendererComponent(
                             table, value, isSelected, hasFocus, row, column
                     );
-                    label.setHorizontalAlignment(SwingConstants.CENTER);
-                    label.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+                    JPanel panel = new JPanel(new GridBagLayout());
+                   
+                    
+                    JLabel badge = new JLabel(value != null ? value.toString() : "");
+                    badge.setFont(new Font("Century Gothic", Font.BOLD, 12));
+                    badge.setOpaque(true);
+                    if(isSelected){
+                        panel.setBackground(table.getSelectionBackground());
+                    }else {
+                        panel.setBackground(table.getBackground());
+                    }
+                    
+                   badge.setBorder(new RoundedBorder(20));
+                   badge.setOpaque(true);
+                   badge.setBackground(new Color(220, 240, 255));
+                   badge.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
                     
                     String statuts = value != null ? value.toString().toLowerCase() : "";
                     
@@ -797,49 +980,30 @@ public class IClient extends javax.swing.JFrame {
                         label.setBackground(new Color(255, 243, 205));
                         label.setForeground(new Color(133, 100, 4));
                     }else {
-                        label.setBackground(Color.LIGHT_GRAY);
-                        label.setForeground(Color.DARK_GRAY);
+                        label.setBackground(new Color(233, 236, 239));
+                        label.setForeground(new Color(73, 80, 87));
                     }
                     
-                    label.setOpaque(true);
-                    return label;
+                    GridBagConstraints gbc = new GridBagConstraints();
+                    gbc.gridx = 0;
+                    gbc.gridy = 0;
+                    gbc.anchor = GridBagConstraints.CENTER;
+                    
+                    panel.add(badge);
+                    return panel;
                 }
               
             });
             
-            clientTable.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer(){
-                private JButton createDetailButton(){
-                    JButton btn = new JButton();
-                    btn.setToolTipText("Voir détails");
-                    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    btn.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-                    btn.setBackground(new Color(240, 242, 245));
-                    btn.setFocusPainted(false);
-                    
-                    try{
-                        ImageIcon icon = loadIcon("/icons/eye.png");
-                        if(icon != null){
-                            btn.setIcon(icon);
-                        }else {
-                            btn.setText("D");
-                        }
-                    }catch(Exception e){
-                        btn.setText("Détail");
-                    }
-                    
-                    return btn;
-                }
-                
-                
-                public Component getTableCellRenderComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column){
-                    JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-                    panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
-                    panel.add(createDetailButton());
-                    return panel;
-                }
-            });
-        }
+            
+            
+            clientTable.getColumnModel().getColumn(6).setCellRenderer(new ActionButtonRenderer()); 
+            clientTable.getColumnModel().getColumn(6).setCellEditor(new ActionButtonEditor(clientTable));
+
+        
     }
+
+
         
         private ImageIcon loadIcon(String path){
             try{
@@ -849,20 +1013,180 @@ public class IClient extends javax.swing.JFrame {
                     Image img = icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
                     return new ImageIcon(img);
                 }
-                File file = new File("resources" + path);
-                if(file.exists()){
-                    ImageIcon icon = new ImageIcon(file.getAbsolutePath());
-                    Image img = icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-                    return new ImageIcon(img);
-                }
+               
             }catch(Exception e){
                 System.out.println("Impossible de charger l'icône");
             }
             
             return null;
         }
+        private ImageIcon createEyeIcon(){
+            BufferedImage image = new BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = image.createGraphics();
+            
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            g2d.setColor(new Color(0, 0, 0, 0));
+            g2d.fillRect(0, 0, 24, 24);
+            
+            g2d.setColor(new Color(100, 100, 100));
+            g2d.setStroke(new BasicStroke(1.5f));
+            g2d.drawOval(4, 6, 16, 10);
+            
+            g2d.setColor(new Color(0, 102, 204));
+            g2d.fillOval(9, 8, 6, 6);
+            
+            g2d.setColor(Color.BLACK);
+            g2d.fillOval(11, 10, 2, 2);
+            
+            g2d.setColor(Color.WHITE);
+            g2d.fillOval(12, 9, 1, 1);
+            
+            g2d.dispose();
+            return new ImageIcon(image);
+        }
         
-        private void loadClients(){
+        class ActionButtonRenderer extends DefaultTableCellRenderer{
+            private JButton createActionButton(){
+                JButton btn = new JButton();
+                btn.setToolTipText("Voir les détails du client");
+                btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                btn.setBorderPainted(false);
+                btn.setContentAreaFilled(false);
+                btn.setFocusPainted(false);
+                btn.setPreferredSize(new Dimension(32, 32));
+                
+                ImageIcon icon = loadIcon("/resources/icons/eye.png");
+                if(icon != null){
+                    btn.setIcon(icon);
+                }else {
+                    btn.setIcon(createEyeIcon());
+                }
+                
+                btn.addMouseListener(new MouseAdapter(){
+                    @Override
+                    public void mouseEntered(MouseEvent e){
+                        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    }
+                });
+                
+                return btn;
+            }
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column){
+                JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 15));
+                panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+                
+                JButton btn = createActionButton();
+                panel.add(btn);
+                
+                return panel;
+            }
+            
+        }
+        
+        class ActionButtonEditor extends AbstractCellEditor implements TableCellEditor{
+            private JPanel panel;
+            private JButton button;
+            private int currentRow;
+            private JTable table;
+            
+            private JButton createActionButton(){
+                JButton btn = new JButton();
+                btn.setToolTipText("Voir les détails du client");
+                btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                btn.setBorderPainted(false);
+                btn.setContentAreaFilled(false);
+                btn.setFocusPainted(false);
+                btn.setPreferredSize(new Dimension(32, 32));
+                
+                ImageIcon icon = loadIcon("/resources/icons/eye.png");
+                if(icon != null){
+                    btn.setIcon(icon);
+                }else {
+                    btn.setIcon(createEyeIcon());
+                }
+                
+                btn.addMouseListener(new MouseAdapter(){
+                    @Override
+                    public void mouseEntered(MouseEvent e){
+                        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    }
+                });
+                
+                return btn;
+            }
+            
+            public ActionButtonEditor(JTable table){
+                this.table = table;
+                
+                panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 10));
+                panel.setBackground(Color.WHITE);
+                
+                button = createActionButton();
+               
+               
+                button.addActionListener(e ->{
+                    String idStr = (String) tableModel.getValueAt(currentRow, 0);
+                    int id = Integer.parseInt(idStr.replace("#", ""));
+                    
+                    System.out.println(" Bouton cliqué pour le client #" + id);
+                    showClientDetails(id);
+                    
+                    fireEditingStopped();
+                });
+                
+                panel.add(button);
+                
+                
+            }
+            
+            @Override
+            public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column){
+                currentRow = row;
+                
+                if(isSelected){
+                    panel.setBackground(table.getSelectionBackground());
+                }else{
+                    panel.setBackground(Color.WHITE);
+                }
+                
+                return panel;
+            }
+            
+            @Override
+            public Object getCellEditorValue(){
+                return null;
+            }
+        }
+        
+        
+        private void showClientDetails(int clientId) {
+        System.out.println("Tentative d'ouverture des détails du client #" + clientId);
+    
+    
+        if (clientId <= 0) {
+        System.out.println(" ID client invalide: " + clientId);
+        return;
+        }
+    
+        try {
+        
+            ClientDetailsDialog dialog = new ClientDetailsDialog(this, clientId);
+            dialog.setVisible(true);
+            System.out.println("Dialogue ouvert avec succès");
+        } catch (Exception e) {
+            System.out.println("Erreur lors de l'ouverture du dialogue: " + e.getMessage());
+            e.printStackTrace();
+        
+        JOptionPane.showMessageDialog(this,
+            "Erreur: " + e.getMessage(),
+            "Erreur",
+            JOptionPane.ERROR_MESSAGE);
+        }
+    }
+        
+        public void loadClients(){
             tableModel.setRowCount(0);
             
             Connection conn = null;
@@ -875,7 +1199,7 @@ public class IClient extends javax.swing.JFrame {
                     
                     return;
                 }
-                String sql = "SELECT idCli, nomCli, preCli, email, numTel, dateNais, profession, sexe, npi FROM client ORDER BY DESC LIMIT 10";
+                String sql = "SELECT idCli, nomCli, preCli, email, numTel, dateNais, profession, sexe, npi FROM client ORDER BY idCli DESC LIMIT 100";
                 pstmt = conn.prepareStatement(sql);
                 rs = pstmt.executeQuery();
                 
@@ -888,6 +1212,8 @@ public class IClient extends javax.swing.JFrame {
             }finally{
                 
             }
+            
+            updateClientCount();
         }
         
         private void addClientRow(ResultSet rs) throws SQLException {
@@ -916,55 +1242,7 @@ public class IClient extends javax.swing.JFrame {
             });
         }
         
-        private JPanel createPagination(){
-            JPanel panel = new JPanel(new BorderLayout());
-            panel.setBackground(new Color(248, 249, 250));
-            panel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(228, 230, 235)),
-                    BorderFactory.createEmptyBorder(16, 24, 16, 24)
-            ));
-            
-            JLabel info = new JLabel("Affichage de 1 à" + tableModel.getRowCount() + "sur" + tableModel.getRowCount() + "clients");
-            info.setFont(new Font("Century Gothic", Font.PLAIN, 14));
-            info.setForeground(new Color(101, 103, 107));
-            
-            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 0));
-            
-            JButton prev = createPageButton("Précédent", false);
-            JButton next = createPageButton("Suivant", false);
-            
-            for (int i=1; i<=3; i++){
-                JButton btn = createPageButton(String.valueOf(i), i == 1);
-                buttons.add(btn);
-            }
-            
-            panel.add(info, BorderLayout.WEST);
-            panel.add(buttons, BorderLayout.EAST);
-            
-            return panel;
-        }
-        
-        private JButton createPageButton(String text, boolean active){
-            JButton btn = new JButton(text);
-            btn.setFont(new Font("Century Gothic", Font.PLAIN, 14));
-            btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            
-            if(active){
-                btn.setBackground(new Color(0, 102, 204));
-                btn.setForeground(Color.WHITE);
-                btn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-                  
-            }else {
-                btn.setBackground(Color.WHITE);
-                btn.setForeground(new Color(10, 103, 107));
-                btn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(228, 230, 235), 1),
-                        BorderFactory.createEmptyBorder(8, 12, 8, 12)
-                ));
-            }
-            
-            return btn;
-        }
+   
         
         private String formatPhone(String phone){
             if(phone == null || phone.length() < 9){
