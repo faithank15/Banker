@@ -282,9 +282,7 @@ public class IClient extends javax.swing.JFrame {
         }
     }
     
-    private void updateHeaderCount(int count){
-        
-    }
+
     class RoundedBorder implements Border {
         private int radius;
         
@@ -821,9 +819,7 @@ public class IClient extends javax.swing.JFrame {
         scrollPane.getViewport().setBackground(Color.WHITE);
         
         card.add(scrollPane, BorderLayout.CENTER);
-        
-        
-        
+     
         
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         return card;
@@ -932,6 +928,7 @@ public class IClient extends javax.swing.JFrame {
                 @Override
                 public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column){
                     JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    
                     if(value != null){
                         String text = value.toString();
                         if(text.contains("<") && text.contains(">")){
@@ -1186,61 +1183,135 @@ public class IClient extends javax.swing.JFrame {
         }
     }
         
-        public void loadClients(){
-            tableModel.setRowCount(0);
-            
-            Connection conn = null;
-            PreparedStatement pstmt = null;
-            ResultSet rs = null;
-            
-            try{
-                conn = DBManager.link();
-                if(conn == null){
-                    
-                    return;
-                }
-                String sql = "SELECT idCli, nomCli, preCli, email, numTel, dateNais, profession, sexe, npi FROM client ORDER BY idCli DESC LIMIT 100";
-                pstmt = conn.prepareStatement(sql);
-                rs = pstmt.executeQuery();
-                
-                while(rs.next()){
-                    addClientRow(rs);
-                }
-                
-            }catch(SQLException e){
-                
-            }finally{
-                
-            }
-            
-            updateClientCount();
+        public void loadClients() {
+   
+    tableModel.setRowCount(0);
+    
+    Connection conn = null;
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+    
+    try {
+        conn = DBManager.link();
+        
+        
+        String sql = "SELECT c.idCli, c.nomCli, c.preCli, c.email, c.numTel, c.dateNais, " +
+                     "c.profession, c.sexe, c.npi, " +
+                     "COUNT(co.idCli) as nbComptes, COALESCE(SUM(co.solde), 0) as totalSolde, " +
+                     "GROUP_CONCAT(DISTINCT co.devise SEPARATOR '/') as devises " +
+                     "FROM client c " +
+                     "LEFT JOIN compte co ON c.idCli = co.idCli " +
+                     "GROUP BY c.idCli, c.nomCli, c.preCli, c.email, c.numTel, " +
+                     "c.dateNais, c.profession, c.sexe, c.npi " +
+                     "ORDER BY c.idCli DESC";
+        
+        pstmt = conn.prepareStatement(sql);
+        rs = pstmt.executeQuery();
+        
+        int count = 0;
+        while (rs.next()) {
+            count++;
+            addClientRow(rs);
         }
         
-        private void addClientRow(ResultSet rs) throws SQLException {
-            int id = rs.getInt("idCli");
-            String nom = rs.getString("nomCli");
-            String prenom = rs.getString("preCli");
-            String email = rs.getString("email");
-            String tel = rs.getString("numTel");
-            String date = rs.getString("dateNais");
-            String profession = rs.getString("profession");
-            String sexe = rs.getString("sexe");
-            String npi = rs.getString("npi");
-            
-            String clientCell = "<html><b>" + nom + " " + prenom + "</b><br><small>NPI: " + npi + "</small></html>";
-            String contactCell = "<html>" + email + "<br><small>" + formatPhone(tel) + "</small></html>";
-            String infoCell = "<html>Né(e): " + (date != null ? date : "N/A") + "<br><small>" + (profession != null ? profession : "Non renseigné") + "</small></html>";
-            
-            tableModel.addRow(new Object[]{
-                "#" + id,
-                clientCell,
-                contactCell,
-                infoCell,
-                "0 compte<br><small>Solde: 0f</small>",
-                "Actif",
-                ""
-            });
+        System.out.println("" + count + " clients chargés avec leurs comptes");
+        updateClientCount();
+        
+    } catch (SQLException e) {
+        System.out.println("Erreur loadClients: " + e.getMessage());
+        e.printStackTrace();
+    } finally {
+        try {
+            if (rs != null) rs.close();
+            if (pstmt != null) pstmt.close();
+            if (conn != null) conn.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+    }
+}
+        
+private void addClientRow(ResultSet rs) throws SQLException {
+    int id = rs.getInt("idCli");
+    String nom = rs.getString("nomCli");
+    String prenom = rs.getString("preCli");
+    String email = rs.getString("email");
+    String tel = rs.getString("numTel");
+    String date = rs.getString("dateNais");
+    String profession = rs.getString("profession");
+    String npi = rs.getString("npi");
+    String sexe = rs.getString("sexe");
+    
+    int nombreComptes = rs.getInt("nbComptes");
+    double soldeTotal = rs.getDouble("totalSolde");
+    String devises = rs.getString("devises");
+    
+    String statut = "Actif";
+    
+    
+    String clientCell = "<html><div style='font-weight:600; color:#1c1e21;'>" + nom + " " + prenom + "</div>" +
+                        "<div style='font-size:8px; color:#65676b;'>NPI: " + npi + "</div></html>";
+    
+    
+    String contactCell = "<html><div style='color:#1c1e21;'>" + email + "</div>" +
+                         "<div style='font-size:8px; color:#65676b;'>" + formatPhone(tel) + "</div></html>";
+    
+    
+    String infoCell = "<html><div style='color:#1c1e21;'>Né(e): " + (date != null ? date : "N/A") + "</div>" +
+                      "<div style='font-size:8px; color:#65676b;'>" + 
+                      (profession != null ? profession : "Non renseignée") + "</div></html>";
+    
+    
+    String comptesCell;
+    if (nombreComptes == 0) {
+        comptesCell = "<html><div style='color:#1c1e21;'>Aucun compte</div>" +
+                      "<div style='font-size:8px; color:#65676b;'>-</div></html>";
+    } else {
+        
+        String deviseAffichage;
+        if (devises != null && devises.contains("/")) {
+            
+            deviseAffichage = devises;
+        } else if (devises != null) {
+            deviseAffichage = devises;
+        } else {
+            deviseAffichage = "€";
+        }
+        
+        String soldeFormate;
+        if (deviseAffichage.equals("€") || deviseAffichage.equals("EUR")) {
+            soldeFormate = String.format("%,.2f €", soldeTotal);
+        } else if (deviseAffichage.equals("$") || deviseAffichage.equals("USD")) {
+            soldeFormate = String.format("%,.2f $", soldeTotal);
+        } else if (deviseAffichage.equals("£") || deviseAffichage.equals("GBP")) {
+            soldeFormate = String.format("%,.2f £", soldeTotal);
+        } else if (deviseAffichage.equals("F") || deviseAffichage.equals("FCFA") || deviseAffichage.equals("f")){
+            soldeFormate = String.format("%,.2f f", soldeTotal);
+        }else{
+            soldeFormate = String.format("%,.2f %s", soldeTotal, deviseAffichage);
+        }
+        
+        comptesCell = "<html><div style='font-weight:600; color:#1c1e21;'>" + nombreComptes + " compte" + (nombreComptes > 1 ? "s" : "") + "</div>" +
+                      "<div style='font-size:8px; color:#28a745;'>" + soldeFormate + "</div>";
+        
+        
+        if (devises != null && devises.contains("/")) {
+            comptesCell += "<div style='font-size:8px; color:#65676b;'>Devises: " + devises + "</div>";
+        }
+        
+        comptesCell += "</html>";
+    }
+    
+    tableModel.addRow(new Object[]{
+        String.format("#%04d", id),
+        clientCell,
+        contactCell,
+        infoCell,
+        comptesCell,
+        statut,
+        ""
+    });
+}
         
    
         
