@@ -9,9 +9,11 @@
             <file>file:/C:/Users/CJ/Documents/banker/Banker/nbproject/build-impl.xml</file>
             <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionClients/ClientDetailsDialog.java</file>
             <file>file:/C:/Users/CJ/Documents/banker/Banker/src/login/Login.java</file>
-            <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionComptes/IComptes.java</file>
             <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionClients/IClient.java</file>
+            <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionTransactions/ITransactions.java</file>
             <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionComptes/CompteDetailsDialog.java</file>
+            <file>file:/C:/Users/CJ/Documents/banker/Banker/src/Transaction/Transaction.java</file>
+            <file>file:/C:/Users/CJ/Documents/banker/Banker/src/GestionComptes/IComptes.java</file>
         </group>
     </open-files>
 </project-private>
