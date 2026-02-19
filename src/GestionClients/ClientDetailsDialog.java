@@ -223,7 +223,8 @@ public class ClientDetailsDialog extends JDialog{
         
         return combo;
     }
-    
+
+private JLabel countLabel;
 private JPanel createAccountsPanel() {
     JPanel panel = new JPanel(new BorderLayout());
     panel.setBackground(Color.WHITE);
@@ -241,7 +242,7 @@ private JPanel createAccountsPanel() {
     titleLabel.setFont(new Font("Century Gothic", Font.BOLD, 18));
     titleLabel.setForeground(new Color(28, 30, 33));
     
-    JLabel countLabel = new JLabel("0 compte(s)");
+    countLabel = new JLabel("0 compte(s)");
     countLabel.setFont(new Font("Century Gothic", Font.PLAIN, 14));
     countLabel.setForeground(new Color(101, 103, 107));
     
@@ -332,6 +333,15 @@ private JPanel createAccountsPanel() {
     
    
 }
+
+private void updateAccountCount(int count) {
+    if (countLabel != null) {
+        String text = count + " compte" + (count > 1 ? "s" : "");
+        countLabel.setText(text);
+        countLabel.revalidate();
+        countLabel.repaint();
+    }
+}
     private JButton editButton;
     private JButton saveButton;
     
@@ -414,7 +424,7 @@ private JPanel createAccountsPanel() {
                 sexeCombo.setSelectedItem("M".equals(sexe) ? "Masculin" : "Féminin");
             }
             
-            loadClientAccounts(conn);
+            loadClients(conn);
         }catch(SQLException e){
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
@@ -550,17 +560,19 @@ private void updateButtonState(boolean isEditing) {
     }
 }
 
-    private void loadClientAccounts(Connection conn) throws SQLException {
-        accountsTableModel.setRowCount(0);
-        
-        String accountsSql = "SELECT numCompte, type, solde, dateCrea, statutCompte, depotInit, cleRIB, devise " +
-                         "FROM compte WHERE idCli = ?";
-        
-        try (PreparedStatement pstmt = conn.prepareStatement(accountsSql)) {
+public void loadClients(Connection conn) throws SQLException {
+    accountsTableModel.setRowCount(0);
+    
+    String accountsSql = "SELECT numCompte, type, solde, dateCrea, statutCompte, depotInit, cleRIB, devise " +
+                         "FROM compte WHERE idCli = ? ORDER BY dateCrea DESC";
+    
+    try (PreparedStatement pstmt = conn.prepareStatement(accountsSql)) {
         pstmt.setInt(1, clientId);
         
         try (ResultSet rs = pstmt.executeQuery()) {
+            int count = 0;
             while (rs.next()) {
+                count++;
                 String numCompte = rs.getString("numCompte");
                 String type = rs.getString("type");
                 double solde = rs.getDouble("solde");
@@ -569,8 +581,37 @@ private void updateButtonState(boolean isEditing) {
                 double depotInit = rs.getDouble("depotInit");
                 String cleRIB = rs.getString("cleRIB");
                 String devise = rs.getString("devise");
-                String soldeFormate = String.format("%,.2f %s", solde, devise);
                 
+                
+                String soldeFormate;
+                if (devise.equals("€") || devise.equals("EUR")) {
+                    soldeFormate = String.format("%,.2f €", solde);
+                } else if (devise.equals("$") || devise.equals("USD")) {
+                    soldeFormate = String.format("%,.2f $", solde);
+                } else if (devise.equals("£") || devise.equals("GBP")) {
+                    soldeFormate = String.format("%,.2f £", solde);
+                } else if (devise.equals("F") || devise.equals("FCFA") || devise.equals("f")){
+                    soldeFormate = String.format("%,.2f f", solde);
+                }else{
+                    soldeFormate = String.format("%,.2f %s", solde, devise);
+                }
+                
+                String depotInitFormate;
+                if (depotInit > 0) {
+                    if (devise.equals("€") || devise.equals("EUR")) {
+                        depotInitFormate = String.format("%,.2f €", depotInit);
+                    } else if (devise.equals("$") || devise.equals("USD")) {
+                        depotInitFormate = String.format("%,.2f $", depotInit);
+                    } else if (devise.equals("£") || devise.equals("GBP")) {
+                        depotInitFormate = String.format("%,.2f £", depotInit);
+                    } else if (devise.equals("F") || devise.equals("FCFA") || devise.equals("f")){
+                        depotInitFormate = String.format("%,.2f f", solde);
+                    }else{
+                        depotInitFormate = String.format("%,.2f %s", solde, devise);
+                    }
+                } else {
+                    depotInitFormate = "-";
+                }
                 
                 accountsTableModel.addRow(new Object[]{
                     numCompte,
@@ -578,12 +619,16 @@ private void updateButtonState(boolean isEditing) {
                     soldeFormate,
                     dateCrea,
                     statut,
-                    depotInit,
+                    depotInitFormate,
                     cleRIB
                 });
             }
+            
+            
+            updateAccountCount(count);
+            
+            System.out.println("" + count + " compte(s) chargé(s) pour le client #" + clientId);
         }
     }
-
-    }
+}
 }
