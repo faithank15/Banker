@@ -234,9 +234,16 @@ public class IClient extends javax.swing.JFrame {
                 
                 return;
             }
-           String sql = "SELECT idCli, nomCli, preCli, email, numTel, dateNais, profession, sexe, npi " +  
-             "FROM client WHERE LOWER(nomCli) LIKE ? OR LOWER(preCli) LIKE ? " +               
-             "ORDER BY idCli DESC";
+           String sql = "SELECT c.idCli, c.nomCli, c.preCli, c.email, c.numTel, c.dateNais, " +
+                     "c.profession, c.sexe, c.npi, " +
+                     "COUNT(co.idCli) as nbComptes, COALESCE(SUM(co.solde), 0) as totalSolde, " +
+                     "GROUP_CONCAT(DISTINCT co.devise SEPARATOR '/') as devises " +
+                     "FROM client c " +
+                     "LEFT JOIN compte co ON c.idCli = co.idCli " +
+                     "WHERE LOWER(c.nomCli) LIKE ? OR LOWER(c.preCli) LIKE ? " +
+                     "GROUP BY c.idCli, c.nomCli, c.preCli, c.email, c.numTel, " +
+                     "c.dateNais, c.profession, c.sexe, c.npi " +
+                     "ORDER BY c.idCli DESC";
             
             pstmt = conn.prepareStatement(sql);
             String pattern = "%" + searchText + "%";
@@ -1244,7 +1251,7 @@ private void addClientRow(ResultSet rs) throws SQLException {
     
     int nombreComptes = rs.getInt("nbComptes");
     double soldeTotal = rs.getDouble("totalSolde");
-    String devises = rs.getString("devises");
+    String devises = rs.getString("devises"); 
     
     String statut = "Actif";
     
@@ -1279,7 +1286,7 @@ private void addClientRow(ResultSet rs) throws SQLException {
         }
         
         String soldeFormate;
-        if (deviseAffichage.equals("€") || deviseAffichage.equals("EUR")) {
+        if (deviseAffichage.equals("€") || deviseAffichage.equals("EURO")) {
             soldeFormate = String.format("%,.2f €", soldeTotal);
         } else if (deviseAffichage.equals("$") || deviseAffichage.equals("USD")) {
             soldeFormate = String.format("%,.2f $", soldeTotal);
